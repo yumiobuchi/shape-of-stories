@@ -1,6 +1,7 @@
 import re
 import nltk
-from string import punctuation #to help remove punc
+import string
+# from string import punctuation #to help remove punc
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
@@ -56,40 +57,43 @@ def clean_up_sentiword_document(orig, final):
     wr.writerow(("word","score"))
     export_data = zip_longest(*d, fillvalue = "")
     wr.writerows(export_data)
-    orig.close()
     final.close()
+    orig.close()
     return final
 
 def convert_list_to_csv(orig, final):
-    scores = []
+    scores = [None]*len(orig)
     d = [orig, scores]  #orig is a list of words
-    
-
-
-
+    wr = csv.writer(final)
+    wr.writerow(("word","score"))
+    export_data = zip_longest(*d, fillvalue = "")
+    wr.writerows(export_data)
+    final.close()
+    return final
 
 def main():
     #pre-processing: load,case, punctuation
     text = open("wuthering-heights.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
+    print("getting mainlines of text")
     text = get_maintext_lines_gutenberg(text)
 
     #tokenize and remove stop words
     testingDataSet, trainingDataSet= [], []
     for phrase in text:
-        phrase.lower()
         phrase_tokenized = word_tokenize(phrase)
         for word in phrase_tokenized:
+            word.lower()
             if word not in stopwords.words("english") and not None:
                 testingDataSet.append(word)
-
+        print("tokenizing...")
     # #by now, final_words is a list of words; sentiword is a csv-- convert both of them into csv with 2 cols
     testingDataSet = convert_list_to_csv(testingDataSet,open('tesingDataSet.csv','w',newline = ""))
-
+    
     #pre-processing for emotion text
-    trainingDataSet = clean_up_sentiword_document(open('SentiWordNet.txt','r'),open('trainingDataSet.csv','w',newline = "" ))
-    print(trainingDataSet)
+    # trainingDataSet = clean_up_sentiword_document(open('SentiWordNet.txt','r'),open('trainingDataSet.csv','w',newline = "" ))
+    # print(trainingDataSet)
     #tagging emotion & split into 3 sets - train 70%, devtest 10%, test 20%
     # f = open("emotion.csv","r")
     # x_train, x_test,y_train, y_test = train_test_split(train_size = 0.8, shuffle = False)
