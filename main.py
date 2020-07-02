@@ -44,22 +44,24 @@ def get_maintext_lines_gutenberg(text): #from https://github.com/andyreagan/core
     return lines[(start_book_i+1):(end_book_i)]
 
 def clean_up_sentiword_document(orig, final):
-    orig.readline()     #to ignore headings
-    words = []
-    scores = []
+    orig.readline()     #to ignore first line containing headings
+    words, scores, res = [],[],[]
     d = [words, scores]
     for line in orig.readlines():
         items = line.split()
+        word = items[4][:-2]
         combined_emotion_score = float(items[2])-float(items[3])
+        itemset = {"word":word,"score":combined_emotion_score}
+        res.append(itemset)
+        words.append(word)
         scores.append(combined_emotion_score)
-        words.append(items[4][:-2])
     wr = csv.writer(final)
     wr.writerow(("word","score"))
     export_data = zip_longest(*d, fillvalue = "")
     wr.writerows(export_data)
     final.close()
     orig.close()
-    return final
+    return res
 
 def convert_list_to_csv(orig, final):
     scores = [None]*len(orig)
@@ -70,6 +72,22 @@ def convert_list_to_csv(orig, final):
     wr.writerows(export_data)
     final.close()
     return final
+def extract_features(tweet,word_feature):
+    tweet_words=set(tweet)
+    features={}
+    for word in word_features:
+        features['contains(%s)' % word]=(word in tweet_words)
+    return features 
+def buildVocabulary(preprocessedTrainingData):
+    all_words = []
+    
+    for (words, sentiment) in preprocessedTrainingData:
+        all_words.extend(words)
+
+    wordlist = nltk.FreqDist(all_words)
+    word_features = wordlist.keys()
+    
+    return word_features
 
 def main():
     #pre-processing: load,case, punctuation
@@ -88,18 +106,46 @@ def main():
             if word not in stopwords.words("english") and not None:
                 testingDataSet.append(word)
         print("tokenizing...")
-    # #by now, final_words is a list of words; sentiword is a csv-- convert both of them into csv with 2 cols
+    print("done tokenizing--------")
+    #convert datasets into csv format, with 2 columns "word", "score" 
     testingDataSet = convert_list_to_csv(testingDataSet,open('tesingDataSet.csv','w',newline = ""))
+    trainingDataSet = clean_up_sentiword_document(open('SentiWordNet.txt','r'),open('trainingDataSet.csv','w',newline = "" ))
+    print("done converting datasets------")
+    # Now we can extract the features and train the classifier 
+    # UPDATE THIS. curently word_features doesnt give proper results: dict_keys(['w', 'o', 'r', 'd'])
+
+    word_features = buildVocabulary(trainingDataSet)
+    print("printing word_features-------",word_features)
+    print("done printing word_features")
+
+
+
+
+
+
+
+
+
+
     
-    #pre-processing for emotion text
-    # trainingDataSet = clean_up_sentiword_document(open('SentiWordNet.txt','r'),open('trainingDataSet.csv','w',newline = "" ))
-    # print(trainingDataSet)
-    #tagging emotion & split into 3 sets - train 70%, devtest 10%, test 20%
+    trainingFeatures=nltk.classify.apply_features(extract_features,trainingDataSet,word_feature)
+
+    NBayesClassifier=nltk.NaiveBayesClassifier.train(trainingFeatures)
+    NBResultLabels = [NBayesClassifier.classify(extract_features(tweet[0],word_feature)) for tweet in testingDataSet]
+
+    # get the majority vote
+    if NBResultLabels.count('positive') > NBResultLabels.count('negative'):
+        print("Overall Positive Sentiment")
+        print("Positive Sentiment Percentage = " + str(100*NBResultLabels.count('positive')/len(NBResultLabels)) + "%")
+    else: 
+        print("Overall Negative Sentiment")
+        print("Negative Sentiment Percentage = " + str(100*NBResultLabels.count('negative')/len(NBResultLabels)) + "%")
+    #tagging emotion & split into 3 sets - train 70%, devtest %, test 20%
     # f = open("emotion.csv","r")
     # x_train, x_test,y_train, y_test = train_test_split(train_size = 0.8, shuffle = False)
 
         
-    # text.close()
+    text.close()
     
         
 
