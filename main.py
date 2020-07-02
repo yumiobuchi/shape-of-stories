@@ -1,20 +1,14 @@
-import string   #to help remove punc
+import re
+import nltk
+from string import punctuation #to help remove punc
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk.classify import NaiveBayesClassifier
 from collections import Counter
 import matplotlib.pyplot as plot
-
-def preprocess_sentiment_dict():
-    f = open("SentiWordNet.txt",encoding="utf-8")
-    # line = f.readline()
-    # while line:
-    #     line = f.readline()
-    #     print(line)
-    #     break
-    # cleaned = 
-    f.close()
+import csv
+from itertools import zip_longest
 
 
 def get_maintext_lines_gutenberg(text): #from https://github.com/andyreagan/core-stories/blob/master/src/bookclass.py
@@ -48,47 +42,64 @@ def get_maintext_lines_gutenberg(text): #from https://github.com/andyreagan/core
                     end_book_i = j
     return lines[(start_book_i+1):(end_book_i)]
 
+def clean_up_sentiword_document(orig, final):
+    orig.readline()     #to ignore headings
+    words = []
+    scores = []
+    d = [words, scores]
+    for line in orig.readlines():
+        items = line.split()
+        combined_emotion_score = float(items[2])-float(items[3])
+        scores.append(combined_emotion_score)
+        words.append(items[4][:-2])
+    wr = csv.writer(final)
+    wr.writerow(("word","score"))
+    export_data = zip_longest(*d, fillvalue = "")
+    wr.writerows(export_data)
+    orig.close()
+    final.close()
+    return final
+
+def convert_list_to_csv(orig, final):
+    scores = []
+    d = [orig, scores]  #orig is a list of words
+    
+
+
+
+
 def main():
-    #STEP 1 pre-processing: load,case, punctuation
+    #pre-processing: load,case, punctuation
     text = open("wuthering-heights.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
     text = get_maintext_lines_gutenberg(text)
-    cleaned_text = [x.lower() for x in text]
 
-    # #STEP 2 remove stop_words
-    final_words = []
-    for i in cleaned_text:
-        if i not in stopwords.words("english") and not "":
-            final_words.append(i)
-    print(final_words)
+    #tokenize and remove stop words
+    testingDataSet, trainingDataSet= [], []
+    for phrase in text:
+        phrase.lower()
+        phrase_tokenized = word_tokenize(phrase)
+        for word in phrase_tokenized:
+            if word not in stopwords.words("english") and not None:
+                testingDataSet.append(word)
 
-    # #STEP 3 Bag of words algo
-    # #check if words in final_words are in emotions
-    # #if it's present, add to emotion_list
-    # #count each emotion in emotion_list
-    # emotion_list = []
-    # with open('emotion.txt','r') as f:
-    #     for line in f:
-    #         clear_line = line.replace("\n","").replace(",","").replace("'","").strip()
-    #         word,emotion = clear_line.split(": ")
+    # #by now, final_words is a list of words; sentiword is a csv-- convert both of them into csv with 2 cols
+    testingDataSet = convert_list_to_csv(testingDataSet,open('tesingDataSet.csv','w',newline = ""))
 
-    #         if word in final_words:
-    #             emotion_list.append(word)
-    # w = Counter(emotion_list)
-    # print(w)
+    #pre-processing for emotion text
+    trainingDataSet = clean_up_sentiword_document(open('SentiWordNet.txt','r'),open('trainingDataSet.csv','w',newline = "" ))
+    print(trainingDataSet)
+    #tagging emotion & split into 3 sets - train 70%, devtest 10%, test 20%
+    # f = open("emotion.csv","r")
+    # x_train, x_test,y_train, y_test = train_test_split(train_size = 0.8, shuffle = False)
 
-    # def sentiment_analyse(cleaned_text):
-    #     score = SentimentIntensityAnalyzer().polarity_scores(cleaned_text)
-    #     neg = score['neg']
-    #     pos = score['pos']
-    #     if neg> pos:
-    #         print("negative sentiment")
-    #     elif pos>neg:
-    #         print("positive sentiment")
-    #     else:
-    #         print("neutral")
-    #     print(score)
+        
+    # text.close()
+    
+        
+
+
 
     # sentiment_analyse(cleaned_text)
 
