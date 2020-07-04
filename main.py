@@ -1,6 +1,7 @@
 import re
 import nltk
 import string
+import pickle
 # from string import punctuation #to help remove punc
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
@@ -10,7 +11,9 @@ from collections import Counter
 import matplotlib.pyplot as plot
 import csv
 from itertools import zip_longest
-
+import os
+import time
+from matplotlib import pyplot as plt
 
 def get_maintext_lines_gutenberg(text): #from https://github.com/andyreagan/core-stories/blob/master/src/bookclass.py
     lines = text.split("\n")
@@ -43,122 +46,149 @@ def get_maintext_lines_gutenberg(text): #from https://github.com/andyreagan/core
                     end_book_i = j
     return lines[(start_book_i+1):(end_book_i)]
 
-def clean_up_sentiword_document(orig, final):
-    orig.readline()     #to ignore first line containing headings
-    words, scores, res = [],[],[]
-    d = [words, scores]
-    for line in orig.readlines():
-        items = line.split()
-        word = items[4][:-2]
-        combined_emotion_score = float(items[2])-float(items[3])
-        itemset = {"word":word,"score":combined_emotion_score}
-        res.append(itemset)
-        words.append(word)
-        scores.append(combined_emotion_score)
+    reader = csv.reader(f,delimiter=",")
+    count = 0
+    for row in reader:
+        print(row[1],":",row[3])
+        if count==2:
+            break
+        count+=1
+
+def recategorize(origscore):     #recategorizes Hedonometer.csv's granular data to 9 categories
+    res = 0
+    if origscore<1.5:
+        res = 1
+    elif origscore<2.5:
+        res = 2
+    elif origscore<3.5:
+        res = 3
+    elif origscore<4.5:
+        res = 4
+    elif origscore<5.5:
+        res = 5
+    elif origscore<6.5:
+        res = 6
+    elif origscore<7.5:
+        res = 7
+    elif origscore<8.5:
+        res = 8
+    else:
+        res = 9
+    return res
+        
+def preprocess_hedonometer_document(orig, final):
+    words,sents,res = [],[],[]
+    d = [words,sents]
+    reader = csv.reader(orig,delimiter=",")
+    firstrow = next(reader)         #first row is column headings
+    try:
+        for row in reader:
+            print(row)
+            row = next(reader)
+            word = row[1]
+            sent = row[3]
+            stddev = row[4]
+            if float(stddev)>2:                #ignore words with overly high sentiment std dev 
+                continue
+            sent = recategorize(float(sent))   #make sentiment categories less granular  
+            itemset = {"word":word,"sentiment":sent}
+            res.append(([word],sent))
+            words.append(word)
+            sents.append(sent)
+    except:                                     #ignore StopIteration exception that arises when using next(reader)
+        pass
     wr = csv.writer(final)
-    wr.writerow(("word","score"))
+    wr.writerow(("word","sentiment"))
     export_data = zip_longest(*d, fillvalue = "")
     wr.writerows(export_data)
     final.close()
     orig.close()
     return res
 
-def convert_list_to_csv(orig, final):
-    scores = [None]*len(orig)
-    d = [orig, scores]  #orig is a list of words
-    wr = csv.writer(final)
-    wr.writerow(("word","score"))
-    export_data = zip_longest(*d, fillvalue = "")
-    wr.writerows(export_data)
-    final.close()
-    return final
-def extract_features(tweet,word_feature):
-    tweet_words=set(tweet)
-    features={}
-    for word in word_features:
-        features['contains(%s)' % word]=(word in tweet_words)
-    return features 
-def buildVocabulary(preprocessedTrainingData):
-    all_words = []
-    
-    for (words, sentiment) in preprocessedTrainingData:
-        all_words.extend(words)
-
-    wordlist = nltk.FreqDist(all_words)
-    word_features = wordlist.keys()
-    
-    return word_features
+def preprocess(text):
+    print("preprocessing testdata")
+    res,phrase_final = [],[]
+    for phrase in text:
+        if phrase.isspace() or phrase =="":
+            continue
+        phrase_tokenized = word_tokenize(phrase)
+        for word in phrase_tokenized:
+            word = word.lower()
+            if word != "" and not word.isspace() and word.isalpha() and word not in stopwords.words("english"):
+                phrase_final.append(word)
+            else:
+                continue
+        if len(phrase_final)==0:
+            continue
+        res.append(phrase_final)
+        phrase_final = []           #reset
+        print("tokenizing...")
+    return res
+def extract_features(phrase):
+    return {word: True for word in phrase} 
+def overallSentiment(classifier,text,start,end):
+    print("sentiment from start:",start,"to end",end)
+    labels = [classifier.classify(extract_features(phrase)) for phrase in text[start:end]]
+    res = sum(labels)/len(labels)   #get the majority vote
+    print(res)
+    if res>5:
+        print("Overall Positive Sentiment")
+    elif res ==5:
+        print("Overall Neutral Sentiment")
+    else:
+        print("Overall Negative Sentiment")
+        # print("Negative Sentiment Percentage = " + str(100*NBResultLabels.count("neg")/len(NBResultLabels)) + "%")
+    return res
 
 def main():
     #pre-processing: load,case, punctuation
-    text = open("wuthering-heights.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
+    text = open("sentence.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
     print("getting mainlines of text")
     text = get_maintext_lines_gutenberg(text)
+    print(text)
 
     #tokenize and remove stop words
-    testingDataSet, trainingDataSet= [], []
-    for phrase in text:
-        phrase_tokenized = word_tokenize(phrase)
-        for word in phrase_tokenized:
-            word.lower()
-            if word not in stopwords.words("english") and not None:
-                testingDataSet.append(word)
-        print("tokenizing...")
-    print("done tokenizing--------")
-    #convert datasets into csv format, with 2 columns "word", "score" 
-    testingDataSet = convert_list_to_csv(testingDataSet,open('tesingDataSet.csv','w',newline = ""))
-    trainingDataSet = clean_up_sentiword_document(open('SentiWordNet.txt','r'),open('trainingDataSet.csv','w',newline = "" ))
-    print("done converting datasets------")
-    # Now we can extract the features and train the classifier 
-    # UPDATE THIS. curently word_features doesnt give proper results: dict_keys(['w', 'o', 'r', 'd'])
+    testingDataSet= preprocess(text)
+    trainingDataSet = preprocess_hedonometer_document(open('Hedonometer.csv'),open('trainingDataSet.csv','w',newline = "" ))
+    trainingFeatures=nltk.classify.apply_features(extract_features,trainingDataSet)
 
-    word_features = buildVocabulary(trainingDataSet)
-    print("printing word_features-------",word_features)
-    print("done printing word_features")
-
-
-
-
-
-
-
-
-
-
+    # checking if we've already trained the model- if not, pickle it
+    if os.path.isfile('my_classifier.pickle'):
+        print("found the model, lodading it!")
+        f = open('my_classifier.pickle','rb')
+        classifier = pickle.load(f)
+        f.close()
+    else:
+        print("training the model for the first time!")
+        classifier = nltk.NaiveBayesClassifier.train(trainingFeatures)
+        f = open('my_classifier.pickle','wb')
+        pickle.dump(classifier,f)
+    window = 20
+    numphrases = 20/5
     
-    trainingFeatures=nltk.classify.apply_features(extract_features,trainingDataSet,word_feature)
+    # window = 5000               #number of words to plot 1 sentiment datapoint in graph
+    # numphrases = 5000//22       #around 22 words per sentence
+    start,end, datapoint = 0,0,0
+    yAxis,xAxis = [],[]
+    for phrase in testingDataSet:   #sliding window 
+        end +=1
+        if end %numphrases==0:      #end of window
+            datapoint = overallSentiment(classifier,testingDataSet,start,end)
+            yAxis.append(datapoint)
+            xAxis.append(end*5)
+            # xAxis.append(end*22)
+            start =end
+    plt.plot(xAxis,yAxis)
+    print("--------",len(xAxis),len(yAxis),"-------")
+    plt.ylim(ymin=0,ymax=9)
+    plt.xlim(xmin=0)
+    plt.xlabel("number of words")
+    plt.ylabel("sentiment")
+    plt.savefig('sentiment_graph.png')
+    plt.show()
 
-    NBayesClassifier=nltk.NaiveBayesClassifier.train(trainingFeatures)
-    NBResultLabels = [NBayesClassifier.classify(extract_features(tweet[0],word_feature)) for tweet in testingDataSet]
-
-    # get the majority vote
-    if NBResultLabels.count('positive') > NBResultLabels.count('negative'):
-        print("Overall Positive Sentiment")
-        print("Positive Sentiment Percentage = " + str(100*NBResultLabels.count('positive')/len(NBResultLabels)) + "%")
-    else: 
-        print("Overall Negative Sentiment")
-        print("Negative Sentiment Percentage = " + str(100*NBResultLabels.count('negative')/len(NBResultLabels)) + "%")
-    #tagging emotion & split into 3 sets - train 70%, devtest %, test 20%
-    # f = open("emotion.csv","r")
-    # x_train, x_test,y_train, y_test = train_test_split(train_size = 0.8, shuffle = False)
-
-        
-    text.close()
-    
-        
-
-
-
-    # sentiment_analyse(cleaned_text)
-
-    # fig, axl = plot.subplots()
-    # axl.bar(w.keys(),w.values())
-    # fig.autofmt_xdate()
-    # plot.bar(w.keys(), w.values())
-    # plot.savefig('graph.png')
-    # plot.show()
-
+startTime = time.time()
 main()
-
+print("----program initial run: %s hours ----"%((time.time() - startime)//3600))
