@@ -138,9 +138,6 @@ def overallSentiment(classifier,testingDataSet):
         label = classifier.classify(extract_features(phrase))
         sumSoFar+=label
         labels.append(label)
-        if label>=6:
-            print('these phrases are labelled 6 or above')
-            print(label,phrase)
         if label <=1:                           #remove extreme values
             sumSoFar-=label
             labels.pop()
@@ -153,7 +150,7 @@ def overallSentiment(classifier,testingDataSet):
 
 def main():
     #initial pre-processing: remove punctuation, removing gutenberg's additional text
-    text = open("texts/sense-and-sensibility.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
+    text = open("texts/pride-and-prejudice.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
     print("getting mainlines of text")
@@ -180,16 +177,26 @@ def main():
 
     perc = np.linspace(0,100,len(yAxis))
     fig = plt.figure(1, (7,4))
-    fig.suptitle('Sense and Sensibility sentiment time series',fontsize=13)
+    fig.suptitle('Pride and Prejudice Sentiment Time Series',fontsize=13)
     ax = fig.add_subplot(1,1,1)
+    plt.xlabel("percentage of document")
+    plt.ylabel("sentiment")
+
+    ymax = max(yAxis)
+    ymin = min(yAxis)
+    xpos_max = yAxis.index(ymax)
+    xpos_min = yAxis.index(ymin)
+    xmax = perc[xpos_max]
+    xmin = perc[xpos_min]
     ax.plot(perc, yAxis)
+    ax.annotate('Happily ever after', xy=(xmax, ymax), xytext=(xmax, ymax+0.2),size = 8)
+    ax.annotate('Infamous letter from Darcy', xy=(xmin, ymin), xytext=(xmax, ymax+0.2),size = 8)
+
     fmt = '%.0f%%'
     xticks = mtick.FormatStrFormatter(fmt)
     ax.xaxis.set_major_formatter(xticks)
 
     plt.xticks(rotation = 40)
-    plt.xlabel("percentage of document")
-    plt.ylabel("sentiment")
     plt.savefig('sentiment_graph.png')
     plt.show()
 
