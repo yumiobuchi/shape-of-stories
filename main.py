@@ -17,44 +17,6 @@ import os
 import time
 from collections import deque
 
-def get_maintext_lines_gutenberg(text): #from https://github.com/andyreagan/core-stories/blob/master/src/bookclass.py
-    lines = text.split("\n")
-    start_book_i = 0
-    end_book_i = len(lines)-1
-    start1="START OF THIS PROJECT GUTENBERG EBOOK"
-    start2="START OF THE PROJECT GUTENBERG EBOOK"
-    end1="END OF THIS PROJECT GUTENBERG EBOOK"
-    end2="END OF THE PROJECT GUTENBERG EBOOK"
-    end3="END OF PROJECT GUTENBERG"
-    for j,line in enumerate(lines):
-        if (start1 in line) or (start2 in line):
-            # and "***" in line and start_book[i] == 0 and j<.25*len(lines):
-            start_book_i = j
-        end_in_line = end1 in line or end2 in line or end3 in line.upper()
-        if end_in_line and (end_book_i == (len(lines)-1)):
-            #  and "***" in line and j>.75*len(lines)
-            end_book_i = j
-    # pass 2, this will bring us to 99%
-    if (start_book_i == 0) and (end_book_i == len(lines)-1):
-        for j,line in enumerate(lines):
-            if ("end" in line.lower() or "****" in line) and  "small print" in line.lower() and j<.5*len(lines):
-                start_book_i = j
-            if "end" in line.lower() and "project gutenberg" in line.lower() and j>.75*len(lines):
-                end_book_i = j
-        # pass three, caught them all (check)
-        if end_book_i == len(lines)-1:
-            for j,line in enumerate(lines):
-                if "THE END" in line and j>.9*len(lines):
-                    end_book_i = j
-    return lines[(start_book_i+1):(end_book_i)]
-
-    reader = csv.reader(f,delimiter=",")
-    count = 0
-    for row in reader:
-        if count==2:
-            break
-        count+=1
-
 def recategorize(origscore):     #recategorizes Hedonometer.csv's granular data to 9 categories
     res = 0
     if origscore<1.5:
@@ -105,6 +67,45 @@ def preprocess_hedonometer_document(orig, final):
     orig.close()
     return res
 
+#this function is from https://github.com/andyreagan/core-stories/blob/master/src/bookclass.py
+def get_maintext_lines_gutenberg(text): 
+    lines = text.split("\n")
+    start_book_i = 0
+    end_book_i = len(lines)-1
+    start1="START OF THIS PROJECT GUTENBERG EBOOK"
+    start2="START OF THE PROJECT GUTENBERG EBOOK"
+    end1="END OF THIS PROJECT GUTENBERG EBOOK"
+    end2="END OF THE PROJECT GUTENBERG EBOOK"
+    end3="END OF PROJECT GUTENBERG"
+    for j,line in enumerate(lines):
+        if (start1 in line) or (start2 in line):
+            # and "***" in line and start_book[i] == 0 and j<.25*len(lines):
+            start_book_i = j
+        end_in_line = end1 in line or end2 in line or end3 in line.upper()
+        if end_in_line and (end_book_i == (len(lines)-1)):
+            #  and "***" in line and j>.75*len(lines)
+            end_book_i = j
+    # pass 2, this will bring us to 99%
+    if (start_book_i == 0) and (end_book_i == len(lines)-1):
+        for j,line in enumerate(lines):
+            if ("end" in line.lower() or "****" in line) and  "small print" in line.lower() and j<.5*len(lines):
+                start_book_i = j
+            if "end" in line.lower() and "project gutenberg" in line.lower() and j>.75*len(lines):
+                end_book_i = j
+        # pass three, caught them all (check)
+        if end_book_i == len(lines)-1:
+            for j,line in enumerate(lines):
+                if "THE END" in line and j>.9*len(lines):
+                    end_book_i = j
+    return lines[(start_book_i+1):(end_book_i)]
+
+    reader = csv.reader(f,delimiter=",")
+    count = 0
+    for row in reader:
+        if count==2:
+            break
+        count+=1
+
 def preprocess(text):
     print("preprocessing testdata")
     res,phrase_final = [],[]
@@ -144,10 +145,6 @@ def overallSentiment(classifier,testingDataSet):
             sumSoFar-=label
             labels.pop()
             continue
-            # print("these phrases are labelled as 1")
-            # print(extract_features(phrase))
-            # print(label,phrase)
-
         if end>=windowLen-1:
             dataPoint = sumSoFar/len(labels)          #update overall answer
             sumSoFar-=labels.popleft()                #remove datapoint
@@ -156,7 +153,7 @@ def overallSentiment(classifier,testingDataSet):
 
 def main():
     #initial pre-processing: remove punctuation, removing gutenberg's additional text
-    text = open("sense-and-sensibility.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
+    text = open("texts/sense-and-sensibility.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
     print("getting mainlines of text")
