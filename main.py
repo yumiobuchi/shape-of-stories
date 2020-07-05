@@ -2,7 +2,6 @@ import re
 import nltk
 import pickle
 import string
-# from string import punctuation
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
@@ -17,7 +16,7 @@ import os
 import time
 from collections import deque
 
-def recategorize(origscore):     #recategorizes Hedonometer.csv's granular data to 9 categories
+def recategorize(origscore):                    #recategorizes Hedonometer.csv's granular data to 9 categories
     res = 0
     if origscore<1.5:
         res = 1
@@ -67,8 +66,7 @@ def preprocess_hedonometer_document(orig, final):
     orig.close()
     return res
 
-#this function is from https://github.com/andyreagan/core-stories/blob/master/src/bookclass.py
-def get_maintext_lines_gutenberg(text): 
+def get_maintext_lines_gutenberg(text):         #this function is from https://github.com/andyreagan/core-stories/blob/master/src/bookclass.py
     lines = text.split("\n")
     start_book_i = 0
     end_book_i = len(lines)-1
@@ -106,7 +104,7 @@ def get_maintext_lines_gutenberg(text):
             break
         count+=1
 
-def preprocess(text):
+def preprocess(text):                              #tokenizing, lower case, removing stop words & punctuations & space & numbers
     print("preprocessing testdata")
     res,phrase_final = [],[]
     for phrase in text:
@@ -127,7 +125,7 @@ def preprocess(text):
     return res
 def extract_features(phrase):
     return {word: True for word in phrase} 
-def overallSentiment(classifier,testingDataSet):
+def overallSentiment(classifier,testingDataSet):    #use sliding window (10000 words) to get graph datapoints 
     sumSoFar,wordsSoFar= 0,0
     labels = deque()
     yAxis = []
@@ -138,31 +136,28 @@ def overallSentiment(classifier,testingDataSet):
         label = classifier.classify(extract_features(phrase))
         sumSoFar+=label
         labels.append(label)
-        if label <=1:                           #remove extreme values
+        if label <=1:                               #remove extreme values
             sumSoFar-=label
             labels.pop()
             continue
         if end>=windowLen-1:
-            dataPoint = sumSoFar/len(labels)          #update overall answer
-            sumSoFar-=labels.popleft()                #remove datapoint
+            dataPoint = sumSoFar/len(labels)         #update overall answer
+            sumSoFar-=labels.popleft()               #remove datapoint
             yAxis.append(dataPoint)
     return yAxis
 
 def main():
-    #initial pre-processing: remove punctuation, removing gutenberg's additional text
-    text = open("texts/pride-and-prejudice.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
+    text = open("texts/pride-and-prejudice.txt",encoding="utf-8").read() 
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
     print("getting mainlines of text")
-    text = get_maintext_lines_gutenberg(text)
-    #more pre-processing: tokenize and remove stop words
-    testingDataSet= preprocess(text)
+    text = get_maintext_lines_gutenberg(text)       #preprocessing
+    testingDataSet= preprocess(text)                #preprocessing
 
     trainingDataSet = preprocess_hedonometer_document(open('Hedonometer.csv'),open('trainingDataSet.csv','w',newline = "" ))
     trainingFeatures=nltk.classify.apply_features(extract_features,trainingDataSet)
 
-    # checking if we've already trained the model- if not, pickle it
-    if os.path.isfile('my_classifier.pickle') and os.path.getsize('my_classifier.pickle')>0:
+    if os.path.isfile('my_classifier.pickle') and os.path.getsize('my_classifier.pickle')>0:    # checking if we've already trained the model- if not, pickle it
             print("found the model, lodading it!")
             f = open('my_classifier.pickle','rb')
             classifier = pickle.load(f)
@@ -173,8 +168,7 @@ def main():
         f = open('my_classifier.pickle','wb')
         pickle.dump(classifier,f)
 
-    yAxis = overallSentiment(classifier, testingDataSet)
-
+    yAxis = overallSentiment(classifier, testingDataSet)  #graphing sentiment time series
     perc = np.linspace(0,100,len(yAxis))
     fig = plt.figure(1, (7,4))
     fig.suptitle('Pride and Prejudice Sentiment Time Series',fontsize=13)
