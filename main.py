@@ -1,20 +1,20 @@
 import re
 import nltk
-import string
 import pickle
-# from string import punctuation #to help remove punc
+import string
+# from string import punctuation
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk.classify import NaiveBayesClassifier
 from collections import Counter
-import matplotlib.pyplot as plot
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 import numpy as np
 import csv
 from itertools import zip_longest
 import os
 import time
-from matplotlib import pyplot as plt
 from collections import deque
 
 def get_maintext_lines_gutenberg(text): #from https://github.com/andyreagan/core-stories/blob/master/src/bookclass.py
@@ -51,7 +51,6 @@ def get_maintext_lines_gutenberg(text): #from https://github.com/andyreagan/core
     reader = csv.reader(f,delimiter=",")
     count = 0
     for row in reader:
-        print(row[1],":",row[3])
         if count==2:
             break
         count+=1
@@ -130,59 +129,69 @@ def extract_features(phrase):
 def overallSentiment(classifier,testingDataSet):
     sumSoFar,wordsSoFar= 0,0
     labels = deque()
-    yAxis,xAxis = [],[]
-    windowLen = 10//5
-    # windowLen = 5000//5                             #a window is 5000 words, and a phrase has roughly 5 words
+    yAxis = []
+    windowLen = 10000//5                            #window should be 10k words. Each phrase is roughly 5 words
+
     for end in range(len(testingDataSet)):          #len(testingDataSet) = num of phrases
         phrase = testingDataSet[end]
-        wordsInPhrase = len(phrase)
-        wordsSoFar +=wordsInPhrase
         label = classifier.classify(extract_features(phrase))
         sumSoFar+=label
         labels.append(label)
-        if end>=windowLen:    
+        if label>=6:
+            print('these phrases are labelled 6 or above')
+            print(label,phrase)
+        if label <=1:                           #remove extreme values
+            sumSoFar-=label
+            labels.pop()
+            continue
+            # print("these phrases are labelled as 1")
+            # print(extract_features(phrase))
+            # print(label,phrase)
+
+        if end>=windowLen-1:
+            dataPoint = sumSoFar/len(labels)          #update overall answer
             sumSoFar-=labels.popleft()                #remove datapoint
-            dataPoint = sumSoFar/len(labels)     #update overall answer
-            xAxis.append(dataPoint)
-            yAxis.append(wordsSoFar)
-    axes = [yAxis,xAxis]
-    return axes
+            yAxis.append(dataPoint)
+    return yAxis
 
 def main():
     #initial pre-processing: remove punctuation, removing gutenberg's additional text
-    text = open("short.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
+    text = open("sense-and-sensibility.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
     print("getting mainlines of text")
     text = get_maintext_lines_gutenberg(text)
-
     #more pre-processing: tokenize and remove stop words
     testingDataSet= preprocess(text)
+
     trainingDataSet = preprocess_hedonometer_document(open('Hedonometer.csv'),open('trainingDataSet.csv','w',newline = "" ))
     trainingFeatures=nltk.classify.apply_features(extract_features,trainingDataSet)
 
     # checking if we've already trained the model- if not, pickle it
-    if os.path.isfile('my_classifier.pickle'):
-        print("found the model, lodading it!")
-        f = open('my_classifier.pickle','rb')
-        classifier = pickle.load(f)
-        f.close()
+    if os.path.isfile('my_classifier.pickle') and os.path.getsize('my_classifier.pickle')>0:
+            print("found the model, lodading it!")
+            f = open('my_classifier.pickle','rb')
+            classifier = pickle.load(f)
+            f.close()
     else:
         print("training the model for the first time!")
         classifier = nltk.NaiveBayesClassifier.train(trainingFeatures)
         f = open('my_classifier.pickle','wb')
         pickle.dump(classifier,f)
 
-    axes = overallSentiment(classifier, testingDataSet)
-    yAxis,xAxis = axes[0],axes[1]
-    print("yAxis",yAxis)
-    print("xAxis",xAxis)
-    plt.plot(xAxis,yAxis)
-    plt.ylim(ymin=0,ymax=9)
-    plt.xlim(xmin=0)
-    plt.xticks(np.arange(min(xAxis),max(xAxis)+1,10))         #display tickers with step size 1000 words
-    # plt.xticks(np.arange(min(xAxis),max(xAxis)+1,1000))         #display tickers with step size 1000 words
-    plt.xlabel("number of words")
+    yAxis = overallSentiment(classifier, testingDataSet)
+
+    perc = np.linspace(0,100,len(yAxis))
+    fig = plt.figure(1, (7,4))
+    fig.suptitle('Sense and Sensibility sentiment time series',fontsize=13)
+    ax = fig.add_subplot(1,1,1)
+    ax.plot(perc, yAxis)
+    fmt = '%.0f%%'
+    xticks = mtick.FormatStrFormatter(fmt)
+    ax.xaxis.set_major_formatter(xticks)
+
+    plt.xticks(rotation = 40)
+    plt.xlabel("percentage of document")
     plt.ylabel("sentiment")
     plt.savefig('sentiment_graph.png')
     plt.show()
@@ -190,17 +199,3 @@ def main():
 startTime = time.time()
 main()
 print("----program runtime: %s minutes ----"%((time.time() - startTime)//60))
-
-# def overallSentiment(classifier,text,start,end):
-    # print("sentiment from start:",start,"to end",end)
-    # labels = [classifier.classify(extract_features(phrase)) for phrase in text[start:end]]
-    # res = sum(labels)/len(labels)   #get the majority vote
-    # print(res)
-    # if res>5:
-    #     print("Overall Positive Sentiment")
-    # elif res ==5:
-    #     print("Overall Neutral Sentiment")
-    # else:
-    #     print("Overall Negative Sentiment")
-    #     # print("Negative Sentiment Percentage = " + str(100*NBResultLabels.count("neg")/len(NBResultLabels)) + "%")
-    # return res
