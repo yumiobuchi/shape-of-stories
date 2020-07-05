@@ -9,11 +9,13 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk.classify import NaiveBayesClassifier
 from collections import Counter
 import matplotlib.pyplot as plot
+import numpy as np
 import csv
 from itertools import zip_longest
 import os
 import time
 from matplotlib import pyplot as plt
+from collections import deque
 
 def get_maintext_lines_gutenberg(text): #from https://github.com/andyreagan/core-stories/blob/master/src/bookclass.py
     lines = text.split("\n")
@@ -80,10 +82,9 @@ def preprocess_hedonometer_document(orig, final):
     words,sents,res = [],[],[]
     d = [words,sents]
     reader = csv.reader(orig,delimiter=",")
-    firstrow = next(reader)         #first row is column headings
+    firstrow = next(reader)                    #first row is column headings
     try:
         for row in reader:
-            print(row)
             row = next(reader)
             word = row[1]
             sent = row[3]
@@ -121,35 +122,41 @@ def preprocess(text):
         if len(phrase_final)==0:
             continue
         res.append(phrase_final)
-        phrase_final = []           #reset
+        phrase_final = []                           #reset
         print("tokenizing...")
     return res
 def extract_features(phrase):
     return {word: True for word in phrase} 
-def overallSentiment(classifier,text,start,end):
-    print("sentiment from start:",start,"to end",end)
-    labels = [classifier.classify(extract_features(phrase)) for phrase in text[start:end]]
-    res = sum(labels)/len(labels)   #get the majority vote
-    print(res)
-    if res>5:
-        print("Overall Positive Sentiment")
-    elif res ==5:
-        print("Overall Neutral Sentiment")
-    else:
-        print("Overall Negative Sentiment")
-        # print("Negative Sentiment Percentage = " + str(100*NBResultLabels.count("neg")/len(NBResultLabels)) + "%")
-    return res
+def overallSentiment(classifier,testingDataSet):
+    sumSoFar,wordsSoFar= 0,0
+    labels = deque()
+    yAxis,xAxis = [],[]
+    windowLen = 10//5
+    # windowLen = 5000//5                             #a window is 5000 words, and a phrase has roughly 5 words
+    for end in range(len(testingDataSet)):          #len(testingDataSet) = num of phrases
+        phrase = testingDataSet[end]
+        wordsInPhrase = len(phrase)
+        wordsSoFar +=wordsInPhrase
+        label = classifier.classify(extract_features(phrase))
+        sumSoFar+=label
+        labels.append(label)
+        if end>=windowLen:    
+            sumSoFar-=labels.popleft()                #remove datapoint
+            dataPoint = sumSoFar/len(labels)     #update overall answer
+            xAxis.append(dataPoint)
+            yAxis.append(wordsSoFar)
+    axes = [yAxis,xAxis]
+    return axes
 
 def main():
-    #pre-processing: load,case, punctuation
-    text = open("sentence.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
+    #initial pre-processing: remove punctuation, removing gutenberg's additional text
+    text = open("short.txt",encoding="utf-8").read() #most stuff from internet has utf-8 encoding
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
     print("getting mainlines of text")
     text = get_maintext_lines_gutenberg(text)
-    print(text)
 
-    #tokenize and remove stop words
+    #more pre-processing: tokenize and remove stop words
     testingDataSet= preprocess(text)
     trainingDataSet = preprocess_hedonometer_document(open('Hedonometer.csv'),open('trainingDataSet.csv','w',newline = "" ))
     trainingFeatures=nltk.classify.apply_features(extract_features,trainingDataSet)
@@ -165,25 +172,16 @@ def main():
         classifier = nltk.NaiveBayesClassifier.train(trainingFeatures)
         f = open('my_classifier.pickle','wb')
         pickle.dump(classifier,f)
-    window = 20
-    numphrases = 20/5
-    
-    # window = 5000               #number of words to plot 1 sentiment datapoint in graph
-    # numphrases = 5000//22       #around 22 words per sentence
-    start,end, datapoint = 0,0,0
-    yAxis,xAxis = [],[]
-    for phrase in testingDataSet:   #sliding window 
-        end +=1
-        if end %numphrases==0:      #end of window
-            datapoint = overallSentiment(classifier,testingDataSet,start,end)
-            yAxis.append(datapoint)
-            xAxis.append(end*5)
-            # xAxis.append(end*22)
-            start =end
+
+    axes = overallSentiment(classifier, testingDataSet)
+    yAxis,xAxis = axes[0],axes[1]
+    print("yAxis",yAxis)
+    print("xAxis",xAxis)
     plt.plot(xAxis,yAxis)
-    print("--------",len(xAxis),len(yAxis),"-------")
     plt.ylim(ymin=0,ymax=9)
     plt.xlim(xmin=0)
+    plt.xticks(np.arange(min(xAxis),max(xAxis)+1,10))         #display tickers with step size 1000 words
+    # plt.xticks(np.arange(min(xAxis),max(xAxis)+1,1000))         #display tickers with step size 1000 words
     plt.xlabel("number of words")
     plt.ylabel("sentiment")
     plt.savefig('sentiment_graph.png')
@@ -191,4 +189,18 @@ def main():
 
 startTime = time.time()
 main()
-print("----program initial run: %s hours ----"%((time.time() - startime)//3600))
+print("----program runtime: %s minutes ----"%((time.time() - startTime)//60))
+
+# def overallSentiment(classifier,text,start,end):
+    # print("sentiment from start:",start,"to end",end)
+    # labels = [classifier.classify(extract_features(phrase)) for phrase in text[start:end]]
+    # res = sum(labels)/len(labels)   #get the majority vote
+    # print(res)
+    # if res>5:
+    #     print("Overall Positive Sentiment")
+    # elif res ==5:
+    #     print("Overall Neutral Sentiment")
+    # else:
+    #     print("Overall Negative Sentiment")
+    #     # print("Negative Sentiment Percentage = " + str(100*NBResultLabels.count("neg")/len(NBResultLabels)) + "%")
+    # return res
