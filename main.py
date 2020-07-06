@@ -15,6 +15,7 @@ from itertools import zip_longest
 import os
 import time
 from collections import deque
+import fnmatch
 
 def recategorize(origscore):                    #recategorizes Hedonometer.csv's granular data to 9 categories
     res = 0
@@ -116,7 +117,7 @@ def get_maintext_lines_gutenberg(text):         #this function is from https://g
             break
         count+=1
 
-def preprocess(text,textname):                              #tokenizing, lower case, removing stop words & punctuations & space & numbers
+def preprocess(text):                              #tokenizing, lower case, removing stop words & punctuations & space & numbers
     print("preprocessing testdata")
     res,phrase_final = [],[]
     for phrase in text:
@@ -137,14 +138,23 @@ def preprocess(text,textname):                              #tokenizing, lower c
     return res
 def extract_features(phrase):
     return {word: True for word in phrase} 
+def get_dataset_wordcount(dataset):
+    count =0
+    for i in dataset:
+        count+=len(i)
+    return count
+
 def overallSentiment(classifier,testingDataSet):    #use sliding window (10000 words) to get graph datapoints 
     sumSoFar,wordsSoFar= 0,0
     labels = deque()
-    yAxis = []
-    windowLen = 10000//5                            #window should be 10k words. Each phrase is roughly 5 words
+    dataInit,dataFinal = [],[]
+    # wordCount = get_dataset_wordcount(testingDataSet)
+    # print("wordCount:",wordCount)
+    windowLen = 10000//5                            #10k words in a window; about 5 words in a phrase
 
     for end in range(len(testingDataSet)):          #len(testingDataSet) = num of phrases
         phrase = testingDataSet[end]
+        wordsSoFar += len(phrase)
         label = classifier.classify(extract_features(phrase))
         sumSoFar+=label
         labels.append(label)
@@ -155,17 +165,26 @@ def overallSentiment(classifier,testingDataSet):    #use sliding window (10000 w
         if end>=windowLen-1:
             dataPoint = sumSoFar/len(labels)         #update overall answer
             sumSoFar-=labels.popleft()               #remove datapoint
-            yAxis.append(dataPoint)
-    return yAxis
+            dataInit.append(dataPoint)
+    numPointsInit = len(dataInit)
+    step = numPointsInit//20
+    for i in range(0,numPointsInit,step):
+        stepAvg = sum(dataInit[i:i+step])/step
+        dataFinal.append(stepAvg)
+    if len(dataFinal)>20:                           #there's more often unnecessay data like index and foreword at the start 
+        throw =len(dataFinal)-20
+        dataFinal = datafinal[throw:]
+    return dataFinal
 
-def main():
-    textname = "the-terror"
-    text = open("texts/%s.txt"%textname,encoding="utf-8").read() 
+def get_sentiment_time_series_for_text(path):
+    print("path is",path)
+    text = open(path,encoding="utf-8").read() 
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
     print("getting mainlines of text")
     text = get_maintext_lines_gutenberg(text)                #preprocessing
-    testingDataSet= preprocess(text,textname)                #preprocessing
+    testingDataSet= preprocess(text)                         #preprocessing
+
     print("--testingDataSet---")
     print(testingDataSet)
     print("--end of testingDataSet---")
@@ -182,35 +201,60 @@ def main():
         classifier = nltk.NaiveBayesClassifier.train(trainingFeatures)
         f = open('my_classifier.pickle','wb')
         pickle.dump(classifier,f)
+    return overallSentiment(classifier, testingDataSet)
 
-    yAxis = overallSentiment(classifier, testingDataSet)  #graphing sentiment time series
-    print("yAxis",yAxis)
-    perc = np.linspace(0,100,len(yAxis))
-    fig = plt.figure(1, (7,5))
-    textname=textname.capitalize()
-    textname = textname.replace('-',' ')
-    fig.suptitle('%s Sentiment Time Series'%textname,fontsize=13)
-    ax = fig.add_subplot(1,1,1)
-    plt.xlabel("percentage of document")
-    plt.ylabel("sentiment")
 
-    # ymax = max(yAxis)
-    # ymin = min(yAxis)
-    # xpos_max = yAxis.index(ymax)
-    # xpos_min = yAxis.index(ymin)
+def main():
+    allYAxes = []
+    path = os.getcwd()
+    for r, d, f in os.walk(path):
+        for file in fnmatch.filter(f,"*.txt"):
+            print("-----now processing %s-------"%file)
+            filepath = "%s/texts/%s"%(os.getcwd(),file)
+            print("trying to get text from this path",filepath)
+            data = get_sentiment_time_series_for_text(filepath)      #main preprocessing, training, classifying
+            print(len(data),"should be 20")
+            allYAxes.append(data)
+    # numDataPoints = len(allYAxes[0])                              #num data points for 1 text (all texts have same # data points)
+    # f = open("dataFromAllBooks.csv","w")                          #writing all NB labels of all books into a csv file                   
+    # dim = ["point%s"%i for i in range(numDataPoints)]             #to create title for columns
+    # with f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(dim)
+    #     writer.writerows(allYAxes)                      
+
+    #now, apply K-means clustering to group all book time seires into clusters of similar patterns
+    #plot all graphs of a similar pattern onto same chart
+
+    ##TO DO: modify below to plot mutliple graphs onto same chart
+    # print("data",data)
+    # perc = np.linspace(0,100,len(data))
+    # fig = plt.figure(1, (7,5))
+    # textname=textname.capitalize()
+    # textname = textname.replace('-',' ')
+    # fig.suptitle('%s Sentiment Time Series'%textname,fontsize=13)
+    # ax = fig.add_subplot(1,1,1)
+    # plt.xlabel("percentage of document")
+    # plt.ylabel("sentiment")
+
+    # ymax = max(data)
+    # ymin = min(data)
+    # xpos_max = data.index(ymax)
+    # xpos_min = data.index(ymin)
     # xmax = perc[xpos_max]
     # xmin = perc[xpos_min]
-    ax.plot(perc, yAxis)
+
+    # ax.plot(perc, data)
     # ax.annotate('Happily ever after', xy=(xmax, ymax), xytext=(xmax, ymax+0.2),size = 8)
     # ax.annotate('Infamous letter from Darcy', xy=(xmin, ymin), xytext=(xmax, ymax+0.2),size = 8)
 
-    fmt = '%.0f%%'
-    xticks = mtick.FormatStrFormatter(fmt)
-    ax.xaxis.set_major_formatter(xticks)
+    # fmt = '%.0f%%'
+    # xticks = mtick.FormatStrFormatter(fmt)
+    # ax.xaxis.set_major_formatter(xticks)
 
-    plt.xticks(rotation = 40)
-    plt.savefig('sentiment_graph.png')
-    plt.show()
+    # plt.xticks(rotation = 40)
+    # plt.savefig('sentiment_graph.png')
+    # plt.show()
 
 startTime = time.time()
 main()
