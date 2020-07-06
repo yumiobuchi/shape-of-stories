@@ -37,20 +37,32 @@ def recategorize(origscore):                    #recategorizes Hedonometer.csv's
     else:
         res = 9
     return res
+def get_common_names():
+    reader = csv.reader(open('names.csv'),delimiter=",")
+    nameset = set()
+    try:
+        for row in reader:
+            nameset.add(row[0])
+            nameset.add(row[1])
+            row = next(reader)
+    except:                                   #ignore StopIteration exception that arises when using next(reader)
+        pass
+    return nameset
         
 def preprocess_hedonometer_document(orig, final):
     words,sents,res = [],[],[]
     d = [words,sents]
     reader = csv.reader(orig,delimiter=",")
     firstrow = next(reader)                    #first row is column headings
+    commonNames = get_common_names()
     try:
         for row in reader:
             row = next(reader)
             word = row[1]
+            if word in commonNames:            
+                continue
             sent = row[3]
             stddev = row[4]
-            if float(stddev)>2:                #ignore words with overly high sentiment std dev 
-                continue
             sent = recategorize(float(sent))   #make sentiment categories less granular  
             itemset = {"word":word,"sentiment":sent}
             res.append(([word],sent))
@@ -104,7 +116,7 @@ def get_maintext_lines_gutenberg(text):         #this function is from https://g
             break
         count+=1
 
-def preprocess(text):                              #tokenizing, lower case, removing stop words & punctuations & space & numbers
+def preprocess(text,textname):                              #tokenizing, lower case, removing stop words & punctuations & space & numbers
     print("preprocessing testdata")
     res,phrase_final = [],[]
     for phrase in text:
@@ -147,13 +159,16 @@ def overallSentiment(classifier,testingDataSet):    #use sliding window (10000 w
     return yAxis
 
 def main():
-    text = open("texts/pride-and-prejudice.txt",encoding="utf-8").read() 
+    textname = "the-terror"
+    text = open("texts/%s.txt"%textname,encoding="utf-8").read() 
     translator=str.maketrans('','',string.punctuation)
     text=text.translate(translator)
     print("getting mainlines of text")
-    text = get_maintext_lines_gutenberg(text)       #preprocessing
-    testingDataSet= preprocess(text)                #preprocessing
-
+    text = get_maintext_lines_gutenberg(text)                #preprocessing
+    testingDataSet= preprocess(text,textname)                #preprocessing
+    print("--testingDataSet---")
+    print(testingDataSet)
+    print("--end of testingDataSet---")
     trainingDataSet = preprocess_hedonometer_document(open('Hedonometer.csv'),open('trainingDataSet.csv','w',newline = "" ))
     trainingFeatures=nltk.classify.apply_features(extract_features,trainingDataSet)
 
@@ -169,22 +184,25 @@ def main():
         pickle.dump(classifier,f)
 
     yAxis = overallSentiment(classifier, testingDataSet)  #graphing sentiment time series
+    print("yAxis",yAxis)
     perc = np.linspace(0,100,len(yAxis))
-    fig = plt.figure(1, (7,4))
-    fig.suptitle('Pride and Prejudice Sentiment Time Series',fontsize=13)
+    fig = plt.figure(1, (7,5))
+    textname=textname.capitalize()
+    textname = textname.replace('-',' ')
+    fig.suptitle('%s Sentiment Time Series'%textname,fontsize=13)
     ax = fig.add_subplot(1,1,1)
     plt.xlabel("percentage of document")
     plt.ylabel("sentiment")
 
-    ymax = max(yAxis)
-    ymin = min(yAxis)
-    xpos_max = yAxis.index(ymax)
-    xpos_min = yAxis.index(ymin)
-    xmax = perc[xpos_max]
-    xmin = perc[xpos_min]
+    # ymax = max(yAxis)
+    # ymin = min(yAxis)
+    # xpos_max = yAxis.index(ymax)
+    # xpos_min = yAxis.index(ymin)
+    # xmax = perc[xpos_max]
+    # xmin = perc[xpos_min]
     ax.plot(perc, yAxis)
-    ax.annotate('Happily ever after', xy=(xmax, ymax), xytext=(xmax, ymax+0.2),size = 8)
-    ax.annotate('Infamous letter from Darcy', xy=(xmin, ymin), xytext=(xmax, ymax+0.2),size = 8)
+    # ax.annotate('Happily ever after', xy=(xmax, ymax), xytext=(xmax, ymax+0.2),size = 8)
+    # ax.annotate('Infamous letter from Darcy', xy=(xmin, ymin), xytext=(xmax, ymax+0.2),size = 8)
 
     fmt = '%.0f%%'
     xticks = mtick.FormatStrFormatter(fmt)
