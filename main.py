@@ -150,7 +150,7 @@ def overallSentiment(classifier,testingDataSet):    #use sliding window (10000 w
     dataInit,dataFinal = [],[]
     # wordCount = get_dataset_wordcount(testingDataSet)
     # print("wordCount:",wordCount)
-    windowLen = 10000//5                            #10k words in a window; about 5 words in a phrase
+    windowLen = 5000//5                            #5k words in a window; about 5 words in a phrase
 
     for end in range(len(testingDataSet)):          #len(testingDataSet) = num of phrases
         phrase = testingDataSet[end]
@@ -173,7 +173,7 @@ def overallSentiment(classifier,testingDataSet):    #use sliding window (10000 w
         dataFinal.append(stepAvg)
     if len(dataFinal)>20:                           #there's more often unnecessay data like index and foreword at the start 
         throw =len(dataFinal)-20
-        dataFinal = datafinal[throw:]
+        dataFinal = dataFinal[throw:]
     return dataFinal
 
 def get_sentiment_time_series_for_text(path):
@@ -205,7 +205,7 @@ def get_sentiment_time_series_for_text(path):
 
 
 def main():
-    allYAxes = []
+    allData = []                                                    #nested lists. Each list is a book's sentiment scores
     path = os.getcwd()
     for r, d, f in os.walk(path):
         for file in fnmatch.filter(f,"*.txt"):
@@ -213,48 +213,17 @@ def main():
             filepath = "%s/texts/%s"%(os.getcwd(),file)
             print("trying to get text from this path",filepath)
             data = get_sentiment_time_series_for_text(filepath)      #main preprocessing, training, classifying
+            print("filename",type(file))
+            filename = file.replace("-"," ").capitalize()
+            filename = filename[:-4]
             print(len(data),"should be 20")
-            allYAxes.append(data)
-    # numDataPoints = len(allYAxes[0])                              #num data points for 1 text (all texts have same # data points)
-    # f = open("dataFromAllBooks.csv","w")                          #writing all NB labels of all books into a csv file                   
-    # dim = ["point%s"%i for i in range(numDataPoints)]             #to create title for columns
-    # with f:
-    #     writer = csv.writer(f)
-    #     writer.writerow(dim)
-    #     writer.writerows(allYAxes)                      
+            data.append(filename)
+            allData.append(data)
 
-    #now, apply K-means clustering to group all book time seires into clusters of similar patterns
-    #plot all graphs of a similar pattern onto same chart
-
-    ##TO DO: modify below to plot mutliple graphs onto same chart
-    # print("data",data)
-    # perc = np.linspace(0,100,len(data))
-    # fig = plt.figure(1, (7,5))
-    # textname=textname.capitalize()
-    # textname = textname.replace('-',' ')
-    # fig.suptitle('%s Sentiment Time Series'%textname,fontsize=13)
-    # ax = fig.add_subplot(1,1,1)
-    # plt.xlabel("percentage of document")
-    # plt.ylabel("sentiment")
-
-    # ymax = max(data)
-    # ymin = min(data)
-    # xpos_max = data.index(ymax)
-    # xpos_min = data.index(ymin)
-    # xmax = perc[xpos_max]
-    # xmin = perc[xpos_min]
-
-    # ax.plot(perc, data)
-    # ax.annotate('Happily ever after', xy=(xmax, ymax), xytext=(xmax, ymax+0.2),size = 8)
-    # ax.annotate('Infamous letter from Darcy', xy=(xmin, ymin), xytext=(xmax, ymax+0.2),size = 8)
-
-    # fmt = '%.0f%%'
-    # xticks = mtick.FormatStrFormatter(fmt)
-    # ax.xaxis.set_major_formatter(xticks)
-
-    # plt.xticks(rotation = 40)
-    # plt.savefig('sentiment_graph.png')
-    # plt.show()
+    dataForClustering = open("dataForClustering.csv","w")
+    wr = csv.writer(dataForClustering)
+    wr.writerows(allData)
+    dataForClustering.close()
 
 startTime = time.time()
 main()
