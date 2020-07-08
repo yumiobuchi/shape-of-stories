@@ -26,6 +26,7 @@ INSERT GRPAH OF CLUSTERS HERE.
 
 # Example: a sentiment time series for Pride and Prejudice by Jane Austen
 ![sentiment time series](https://github.com/yumiobuchi/emotion-arcs/blob/master/sentiment_graph.png?raw=true)
+
 Note how the "lowest" and "highest" sentiment points correlate to the most negative and positive emotional events.
 
 # Next steps
@@ -34,7 +35,7 @@ Process more books, perhaps from a Project Gutenberg bookshelf
 Smoothing the graphs
 
 # How to run
-ensure that you've pip installed relevant packages: nltk, matplotlib, numpy, pickle
+ensure that you've pip installed relevant packages e.g. nltk, matplotlib, numpy, pickle
 run: python3 main.py
 
 
