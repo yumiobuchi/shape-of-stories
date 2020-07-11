@@ -28,7 +28,7 @@ Multinomial Naive Bayes
 
 ***clustering:***
 KMeans -- I group texts with similar "shapes" into clusters, determining a good K by elbow method, which recommends 2-3 clusters. 
-![kmeans elbow method](https://github.com/yumiobuchi/emotion-arcs/blob/master/kmeans.png?raw=true)
+![kmeans elbow method](https://github.com/yumiobuchi/emotion-arcs/blob/master/img/kmeans.png?raw=true)
 
 Finally we're at the fun part: generating clusters that represent archetypical emotion journeys in literature. 
 
