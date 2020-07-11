@@ -40,14 +40,21 @@ It's unclear. After processing 1106 texts, there does not appear to be major dif
 ![cluster 3](https://github.com/yumiobuchi/emotion-arcs/blob/master/img/cluster_2.png?raw=true)
 
 # How to improve
-***Expand features selection:*** to include negation, humour
-***Find a better training data set:***the current training dataset contains more "modern" words and modern sentiments, as a good part of them are sourced from NYT articles and Twitter. However our testing dataset, books from Project Gutenberg are old enough that their US copyright protection has expired (age of author+70 years)
-***Inherent issue with Naive Bayes classification:** assumption of independence in features -> experiment with other classification algos
+***Expand features selection:***
+to include negation, humour
+
+***Find a better training data set:***
+the current training dataset contains more "modern" words and modern sentiments, as a good part of them are sourced from NYT articles and Twitter. However our testing dataset, books from Project Gutenberg are old enough that their US copyright protection has expired (age of author+70 years)
+
+***Inherent issue with Naive Bayes classification:***
+assumption of independence in features -> experiment with other classification algos
 
 
 # How to run
 ensure that you've pip installed relevant packages e.g. nltk, matplotlib, numpy, pickle
-run: python3 main.py
+
+**run: python3 main.py**
+
 This program with call 3 other processes to download texts, apply Naive Bayes, and cluster
 
 
