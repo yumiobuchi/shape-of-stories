@@ -39,7 +39,7 @@ def recategorize(origscore):                    #recategorizes Hedonometer.csv's
         res = 9
     return res
 def get_common_names():
-    reader = csv.reader(open('names.csv'),delimiter=",")
+    reader = csv.reader(open('../names.csv'),delimiter=",")
     nameset = set()
     try:
         for row in reader:
@@ -218,10 +218,10 @@ def main():
     path = os.getcwd()
     for r, d, f in os.walk(path):
         for file in fnmatch.filter(f,"*.txt"):
-            if file!="bookids.txt":
+            if file!="../bookids.txt":
                 try:
                     print("-----now processing %s-------"%file)
-                    filepath = "%s/temptexts/%s"%(os.getcwd(),file)
+                    filepath = "%s/../texts/%s"%(os.getcwd(),file)
                     data = get_sentiment_time_series_for_text(filepath)      #main preprocessing, training, classifying
                     if data is None:
                         print("data is none, ----abandoning %s----"%file)
@@ -235,7 +235,7 @@ def main():
                     print("-----abandoning %s-----"%file)
 
     #get data ready for generating KMeans clusters for all texts
-    dataForClustering = open("dataForClustering.csv","w")
+    dataForClustering = open("../dataForClustering.csv","w")
     wr = csv.writer(dataForClustering)
     firstrow = []
     numPoints = len(allData[0])
